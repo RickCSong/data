@@ -334,6 +334,12 @@ Store = Ember.Object.extend({
     store.find('person', 1);
     ```
 
+    Additionally you can pass `query` when using `id`.
+
+        store.find('person', 1, {include: 'comments'});
+
+    Will append '?include=comments` to your request.
+
     The `find` method will always return a **promise** that will be resolved
     with the record. If the record was already in the store, the promise will
     be resolved immediately. Otherwise, the store will ask the adapter's `find`
@@ -370,12 +376,13 @@ Store = Ember.Object.extend({
     @method find
     @param {String or subclass of DS.Model} type
     @param {Object|String|Integer|null} id
+    @param {Object|String|null} query params
     @return {Promise} promise
   */
-  find: function(type, id) {
+  find: function(type, id, query) {
     Ember.assert("You need to pass a type to the store's find method", arguments.length >= 1);
     Ember.assert("You may not pass `" + id + "` as id to the store's find method", arguments.length === 1 || !Ember.isNone(id));
-
+    
     if (arguments.length === 1) {
       return this.findAll(type);
     }
@@ -385,23 +392,26 @@ Store = Ember.Object.extend({
       return this.findQuery(type, id);
     }
 
-    return this.findById(type, coerceId(id));
+    return this.findById(type, coerceId(id), query);
   },
 
   /**
     This method returns a record for a given type and id combination.
+    You can optionally pass a query object which will be append to the
+    request.
 
     @method findById
     @private
     @param {String or subclass of DS.Model} type
     @param {String|Integer} id
+    @param {Object|Query|null} query
     @return {Promise} promise
   */
-  findById: function(type, id) {
+  findById: function(type, id, query) {
     type = this.modelFor(type);
 
     var record = this.recordForId(type, id);
-    var fetchedRecord = this.fetchRecord(record);
+    var fetchedRecord = this.fetchRecord(record, query);
 
     return promiseObject(fetchedRecord || record, "DS: Store#findById " + type + " with id: " + id);
   },
@@ -434,7 +444,7 @@ Store = Ember.Object.extend({
     @param {DS.Model} record
     @return {Promise} promise
   */
-  fetchRecord: function(record) {
+  fetchRecord: function(record, query) {
     if (isNone(record)) { return null; }
     if (record._loadingPromise) { return record._loadingPromise; }
     if (!get(record, 'isEmpty')) { return null; }
@@ -447,7 +457,7 @@ Store = Ember.Object.extend({
     Ember.assert("You tried to find a record but you have no adapter (for " + type + ")", adapter);
     Ember.assert("You tried to find a record but your adapter (for " + type + ") does not implement 'find'", adapter.find);
 
-    var promise = _find(adapter, this, type, id);
+    var promise = _find(adapter, this, type, id, query);
     record.loadingData(promise);
     return promise;
   },
@@ -485,9 +495,10 @@ Store = Ember.Object.extend({
     @method reloadRecord
     @private
     @param {DS.Model} record
+    @param {Object|Query|null} query
     @return {Promise} promise
   */
-  reloadRecord: function(record) {
+  reloadRecord: function(record, query) {
     var type = record.constructor,
         adapter = this.adapterFor(type),
         id = get(record, 'id');
@@ -496,7 +507,7 @@ Store = Ember.Object.extend({
     Ember.assert("You tried to reload a record but you have no adapter (for " + type + ")", adapter);
     Ember.assert("You tried to reload a record but your adapter does not implement `find`", adapter.find);
 
-    return _find(adapter, this, type, id);
+    return _find(adapter, this, type, id, query);
   },
 
   /**
@@ -1675,8 +1686,8 @@ function serializerForAdapter(adapter, type) {
   return serializer;
 }
 
-function _find(adapter, store, type, id) {
-  var promise = adapter.find(store, type, id),
+function _find(adapter, store, type, id, query) {
+  var promise = adapter.find(store, type, id, query),
       serializer = serializerForAdapter(adapter, type),
       label = "DS: Handle Adapter#find of " + type + " with id: " + id;
 

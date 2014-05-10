@@ -3,7 +3,7 @@
 */
 
 import Adapter from "../system/adapter";
-var get = Ember.get, set = Ember.set;
+var get = Ember.get, set = Ember.set, isNone = Ember.isNone;
 var forEach = Ember.ArrayPolyfills.forEach;
 
 /**
@@ -173,7 +173,7 @@ var RESTAdapter = Adapter.extend({
 
   /**
     Called by the store in order to fetch the JSON for a given
-    type and ID.
+    type and ID (and an optional query).
 
     The `find` method makes an Ajax request to a URL computed by `buildURL`, and returns a
     promise for the resulting payload.
@@ -184,10 +184,15 @@ var RESTAdapter = Adapter.extend({
     @param {DS.Store} store
     @param {subclass of DS.Model} type
     @param {String} id
+    @param {Object|String|null} query param
     @return {Promise} promise
   */
-  find: function(store, type, id) {
-    return this.ajax(this.buildURL(type.typeKey, id), 'GET');
+  find: function(store, type, id, query) {
+    if (!isNone(query)){
+      return this.ajax(this.buildURL(type.typeKey, id), 'GET', { data: query });
+    } else {
+      return this.ajax(this.buildURL(type.typeKey, id), 'GET');
+    }
   },
 
   /**
@@ -359,6 +364,9 @@ var RESTAdapter = Adapter.extend({
     of a record.
 
     @method createRecord
+    @see RESTAdapter/buildURL
+    @see RESTAdapter/ajax
+    @see RESTAdapter/serialize
     @param {DS.Store} store
     @param {subclass of DS.Model} type
     @param {DS.Model} record

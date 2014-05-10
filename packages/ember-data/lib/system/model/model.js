@@ -929,18 +929,19 @@ var Model = Ember.Object.extend(Ember.Evented, {
     ```
 
     @method reload
+    @param {Object|Query|null} query
     @return {Promise} a promise that will be resolved with the record when the
     adapter returns successfully or rejected if the adapter returns
     with an error.
   */
-  reload: function() {
+  reload: function(query) {
     set(this, 'isReloading', true);
 
     var  record = this;
 
     var promiseLabel = "DS: Model#reload of " + this;
-    var promise = new Promise(function(resolve){
-       record.send('reloadRecord', resolve);
+    var promise = new Ember.RSVP.Promise(function(resolve){
+      record.send('reloadRecord', {resolve: resolve, query: query});
     }, promiseLabel).then(function() {
       record.set('isReloading', false);
       record.set('isError', false);
